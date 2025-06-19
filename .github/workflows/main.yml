@@ -5,30 +5,28 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  TZ: Asia/Shanghai
+
 jobs:
   build:
-    runs-on: ubuntu-22.04  # 推荐稳定版，避免 devkitPro GPG 问题
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout Atmosphère
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        ref: main
 
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential
-
-        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
+        sudo apt-get install -y curl wget gpg python3-pip build-essential zip
         echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-
         sudo apt-get update
         sudo apt-get install -y devkitpro-pacman
-
-        # 安装所需工具链和库
         sudo dkp-pacman -Syu --noconfirm
         sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-
-        # Python lz4 依赖（用于 Exosphere）
         pip3 install lz4
 
     - name: Set environment variables
@@ -38,15 +36,46 @@ jobs:
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
         echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Build Atmosphère (nx_release)
+    - name: Build Atmosphère
       run: |
         make nx_release
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+    - name: Unzip and repackage Atmosphère
+      run: |
+        release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
+        zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
+        echo "Found zip: $zip_file"
+
+        mkdir -p unpacked
+        unzip -q "$zip_file" -d unpacked
+
+        inner_dir=$(find unpacked -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        cp "$release_dir/fusee.bin" "$inner_dir/"
+
+        cd "$inner_dir"
+        zip -rq ../../atmosphere.zip .
+        cd -
+
+    - name: Set tag and release name
+      run: |
+        echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+        echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
       with:
-        name: atmosphere-build
-        path: |
-          out/
-          !out/**/*debug.zip
-        if-no-files-found: warn
+        name: ${{ env.RELEASE_NAME }}
+        tag: ${{ env.TAG_NAME }}
+        allowUpdates: false
+        commit: main
+        token: ${{ secrets.actions_release }}
+        body: "最新构建版本，包含 atmosphere.zip 和 fusee.bin"
+        artifacts: atmosphere.zip
+
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@v0.3.2
+      with:
+        keep_latest: 5
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.actions_release }}
