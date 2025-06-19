@@ -1,38 +1,55 @@
-name: Build Atmosphere
+name: Build Atmosphère
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # 推荐稳定版，避免 devkitPro GPG 问题
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    - name: Checkout Atmosphère
+      uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y git build-essential python3 python3-pip lz4 pkg-config cmake libssl-dev
-          pip3 install lz4 pycryptodome
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl wget gpg python3-pip build-essential
 
-      - name: Install devkitPro
-        run: |
-          sudo apt update
-          sudo apt install -y wget curl gpg
-          echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-          sudo apt update
-          sudo apt install -y devkitpro-pacman
-          sudo dkp-pacman -Syu --noconfirm
-          sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo
+        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
+        echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
 
-      - name: Set ENV
-        run: |
-          echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-          echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-          echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-          echo "/opt/devkitpro/devkitA64/bin:/opt/devkitpro/devkitARM/bin:$PATH" >> $GITHUB_PATH
+        sudo apt-get update
+        sudo apt-get install -y devkitpro-pacman
 
-      - name: Build
-        run: |
-          make
+        # 安装所需工具链和库
+        sudo dkp-pacman -Syu --noconfirm
+        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+
+        # Python lz4 依赖（用于 Exosphere）
+        pip3 install lz4
+
+    - name: Set environment variables
+      run: |
+        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
+        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
+        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
+        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Build Atmosphère (nx_release)
+      run: |
+        make nx_release
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: atmosphere-build
+        path: |
+          out/
+          **/*.kip
+          **/*.nso
+          **/*.nro
+          **/*.elf
+        if-no-files-found: warn
