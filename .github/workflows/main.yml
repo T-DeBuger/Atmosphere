@@ -1,0 +1,38 @@
+name: Build Atmosphere
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential python3 python3-pip lz4 pkg-config cmake libssl-dev
+          pip3 install lz4 pycryptodome
+
+      - name: Install devkitPro
+        run: |
+          sudo apt install -y wget curl
+          echo "deb http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+          curl -fsSL https://apt.devkitpro.org/devkitpro-key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/devkitpro.gpg > /dev/null
+          sudo apt update
+          sudo apt install -y devkitpro-pacman
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo
+
+      - name: Set ENV
+        run: |
+          echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
+          echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
+          echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
+          echo "/opt/devkitpro/devkitA64/bin:/opt/devkitpro/devkitARM/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Build
+        run: |
+          make
