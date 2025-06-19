@@ -2,7 +2,7 @@ name: Build Atmosphère
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 env:
@@ -16,13 +16,13 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v4
       with:
-        ref: main
+        ref: master
 
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y curl wget gpg python3-pip build-essential zip
-        echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
         sudo apt-get update
         sudo apt-get install -y devkitpro-pacman
         sudo dkp-pacman -Syu --noconfirm
@@ -67,7 +67,7 @@ jobs:
         name: ${{ env.RELEASE_NAME }}
         tag: ${{ env.TAG_NAME }}
         allowUpdates: false
-        commit: main
+        commit: master
         token: ${{ secrets.actions_release }}
         body: "最新构建版本，包含 atmosphere.zip 和 fusee.bin"
         artifacts: atmosphere.zip
