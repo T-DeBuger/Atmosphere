@@ -2,7 +2,7 @@ name: Build Atmosphère
 
 on:
   # push:
-  #   branches: [ main ]
+  #   branches: [ master ]
   workflow_dispatch:
 
 env:
@@ -13,13 +13,20 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: devkitpro/devkita64  # ✅ 已内置 switch 构建工具链
+      image: devkitpro/devkita64  # ✅ 使用官方构建环境镜像
+      options: --user root        # 允许使用 apt 安装额外依赖
 
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v4
       with:
-        ref: main
+        ref: master
+
+    - name: Install extra dependencies
+      run: |
+        apt-get update
+        apt-get install -y python3-pip zip unzip
+        pip3 install lz4
 
     - name: Set environment variables
       run: |
@@ -28,19 +35,13 @@ jobs:
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
         echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Install extra Python deps
-      run: |
-        apt-get update
-        apt-get install -y python3-pip unzip zip
-        pip3 install lz4
-
     - name: Build Atmosphère
       run: |
         make nx_release
 
-    - name: Unzip + Repack atmosphere.zip
+    - name: Unzip and repackage Atmosphère
       run: |
-        release_dir="out/nintendo_nx_arm64_armv8a/release"
+        release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
         echo "Found zip: $zip_file"
 
@@ -54,15 +55,20 @@ jobs:
         zip -rq ../../atmosphere.zip .
         cd -
 
+    - name: Set tag and release name
+      run: |
+        echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+        echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        name: Atmosphère Build
-        tag: latest
-        allowUpdates: true
-        commit: main
+        name: ${{ env.RELEASE_NAME }}
+        tag: ${{ env.TAG_NAME }}
+        allowUpdates: false
+        commit: master
         token: ${{ secrets.actions_release }}
-        body: "Latest Atmosphère build from GitHub Actions"
+        body: "最新构建版本，包含 atmosphere.zip 和 fusee.bin"
         artifacts: atmosphere.zip
 
     - name: Remove old Releases
@@ -72,3 +78,10 @@ jobs:
         delete_tags: true
       env:
         GITHUB_TOKEN: ${{ secrets.actions_release }}
+
+    - name: Trigger B repository workflow
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.actions_release }}
+        repository: T-DeBuger/SwitchNX
+        event-type: build-complete
