@@ -1,8 +1,8 @@
 name: Build Atmosphère
 
 on:
-  push:
-    branches: [ master ]
+  # push:
+  #   branches: [ master ]
   workflow_dispatch:
 
 env:
@@ -79,3 +79,10 @@ jobs:
         delete_tags: true
       env:
         GITHUB_TOKEN: ${{ secrets.actions_release }}
+
+    - name: Trigger B repository workflow
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.actions_release }}
+        repository: T-DeBuger/SwitchNX
+        event-type: build-complete
