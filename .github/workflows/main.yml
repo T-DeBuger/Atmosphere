@@ -91,12 +91,10 @@ jobs:
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
 
-        # 修正层级处理，假设解压后文件夹名和 zip_name 一致
-        inner_dir="unpacked/$zip_name"
-        cp "$release_dir/fusee.bin" "$inner_dir/"
+        cp "$release_dir/fusee.bin" unpacked/
 
         cd unpacked
-        zip -rq ../atmosphere.zip "$zip_name"
+        zip -rq ../atmosphere.zip .
         cd -
 
     - name: Set tag and release name
