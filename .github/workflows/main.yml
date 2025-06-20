@@ -53,7 +53,7 @@ jobs:
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=${ env.ZIP_NAME } | $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        echo "RELEASE_NAME=${{ env.ZIP_NAME }} | $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
