@@ -15,12 +15,11 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Cache devkitPro
+      id: devkitpro-cache
       uses: actions/cache@v4
       with:
-        path: |
-          /opt/devkitpro
-          ~/.dkp
-        key: devkitpro-${{ runner.os }}-v1
+        path: ~/.devkitpro
+        key: devkitpro-${{ runner.os }}-v2
 
     - name: Cache pip dependencies
       uses: actions/cache@v4
@@ -39,6 +38,7 @@ jobs:
           ccache-${{ runner.os }}-
 
     - name: Install dependencies
+      if: steps.devkitpro-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip
@@ -47,6 +47,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y devkitpro-pacman
 
+        export DEVKITPRO=$HOME/.devkitpro
+        mkdir -p "$DEVKITPRO"
+
         sudo dkp-pacman -Syu --noconfirm
         sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
 
@@ -54,16 +57,16 @@ jobs:
 
     - name: Setup environment variables
       run: |
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+        echo "DEVKITPRO=$HOME/.devkitpro" >> $GITHUB_ENV
+        echo "DEVKITARM=$HOME/.devkitpro/devkitARM" >> $GITHUB_ENV
+        echo "DEVKITA64=$HOME/.devkitpro/devkitA64" >> $GITHUB_ENV
+        echo "PATH=$HOME/.devkitpro/devkitARM/bin:$HOME/.devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
     - name: Setup ccache
       run: |
-        echo "CC='ccache gcc'" >> $GITHUB_ENV
-        echo "CXX='ccache g++'" >> $GITHUB_ENV
-        echo "CCACHE_DIR=${HOME}/.ccache" >> $GITHUB_ENV
+        export CC="ccache gcc"
+        export CXX="ccache g++"
+        export CCACHE_DIR=~/.ccache
         ccache -M 2G
 
     - name: Build Atmosphère
@@ -84,12 +87,12 @@ jobs:
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
 
-        inner_dir=$(find unpacked -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        # 正确处理层级：直接在 unpacked 中处理
+        inner_dir="unpacked/$zip_name"
         cp "$release_dir/fusee.bin" "$inner_dir/"
 
-        # 正确打包 atmosphere.zip：跳过 unpacked/<inner_dir>/ 再套一层的问题
         cd unpacked
-        zip -rq ../atmosphere.zip ./*
+        zip -rq ../atmosphere.zip "$zip_name"
         cd -
 
     - name: Set tag and release name
