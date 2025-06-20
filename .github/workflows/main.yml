@@ -17,30 +17,23 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl wget python3-pip build-essential unzip zip
-
-    - name: Install devkitPro pacman
-      run: |
-        curl -LO https://apt.devkitpro.org/install-devkitpro-pacman
-        chmod +x ./install-devkitpro-pacman
-        sudo ./install-devkitpro-pacman
-
-    - name: Update and install toolchains
-      run: |
-        sudo dkp-pacman -Syu
-        sudo dkp-pacman -S devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-
-    - name: Install Python lz4
-      run: |
+        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip
+        # 安装 devkitPro 工具链（跳过 GPG 校验）
+        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+        sudo apt-get update
+        sudo apt-get install -y devkitpro-pacman
+        sudo dkp-pacman -Syu --noconfirm
+        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+        # Python 依赖
         pip3 install lz4
 
-    - name: Set environment variables
+    - name: Setup environment variables
       run: |
         echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
         echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
         echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
-
+    
     - name: Build Atmosphère
       run: |
         make nx_release
@@ -50,6 +43,11 @@ jobs:
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
         echo "Found zip: $zip_file"
+
+        zip_name=$(basename "$zip_file" .zip)
+        echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
+        echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
         cp "$release_dir/fusee.bin" unpacked/
@@ -60,8 +58,8 @@ jobs:
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-
+        echo "RELEASE_NAME=${{ env.ZIP_NAME }} $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
@@ -81,7 +79,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.actions_release }}
 
-    - name: Trigger B repository workflow
+    - name: Trigger repository workflow
       uses: peter-evans/repository-dispatch@v2
       with:
         token: ${{ secrets.actions_release }}
