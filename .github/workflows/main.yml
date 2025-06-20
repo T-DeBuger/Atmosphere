@@ -9,51 +9,17 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    container:
+      image: devkitpro/devkita64:latest
 
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
-    - name: Install base dependencies
+    - name: Install Python dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip zstd tar
-
-    - name: Install devkitPro pacman manually
-      run: |
-        # 下载 devkitpro-pacman 安装包（v6.0.2）
-        wget https://github.com/devkitPro/pacman/releases/download/v6.0.2/devkitpro-pacman-installer.pkg -O devkitpro-pacman.pkg.tar.zst
-        
-        # 解压安装
-        mkdir devkitpro-installer
-        tar --use-compress-program=unzstd -xvf devkitpro-pacman.pkg.tar.zst -C devkitpro-installer
-        
-        # 安装文件复制到系统目录
-        sudo cp -r devkitpro-installer/* /
-
-        # 添加 dkp-pacman 命令到 PATH（写入 GitHub Actions 环境变量）
-        echo "/opt/devkitpro/pacman/bin" >> $GITHUB_PATH
-
-    - name: Initialize and populate pacman keyring
-      run: |
-        sudo dkp-pacman-key --init || true
-        sudo dkp-pacman-key --populate || true
-
-    - name: Update and install devkitPro toolchains
-      run: |
-        sudo dkp-pacman -Syu --noconfirm || true
-        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool || true
-
-    - name: Install Python lz4
-      run: |
+        python3 -m pip install --upgrade pip
         pip3 install lz4
-
-    - name: Setup environment variables
-      run: |
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
     - name: Build Atmosphère
       run: |
