@@ -19,20 +19,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y curl wget python3-pip build-essential unzip zip
 
-    - name: Install devkitpro-pacman using official install script
+    - name: Install devkitPro pacman
       run: |
-        # 下载官方安装脚本
-        curl -LO https://raw.githubusercontent.com/devkitPro/installer/master/devkitpro-pacman.sh
-        # 给予执行权限
-        chmod +x devkitpro-pacman.sh
-        # 以非交互方式执行安装（安装路径默认 /opt/devkitpro）
-        sudo ./devkitpro-pacman.sh -y
-        # 确保 PATH 包含 pacman 目录
-        export PATH=/opt/devkitpro/devkitpro-pacman/bin:$PATH
-        # 初始化数据库和镜像
-        sudo /opt/devkitpro/devkitpro-pacman/bin/devkitpro-pacman -Syu --noconfirm
-        # 安装必要工具链和库
-        sudo /opt/devkitpro/devkitpro-pacman/bin/devkitpro-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+        curl -LO https://apt.devkitpro.org/install-devkitpro-pacman
+        chmod +x ./install-devkitpro-pacman
+        sudo ./install-devkitpro-pacman
+
+    - name: Update and install toolchains
+      run: |
+        sudo pacman -Syu
+        sudo pacman -S devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
 
     - name: Install Python lz4
       run: |
@@ -43,7 +39,7 @@ jobs:
         echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
         echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=/opt/devkitpro/devkitpro-pacman/bin:/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
     - name: Build Atmosphère
       run: |
