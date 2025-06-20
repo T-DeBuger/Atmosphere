@@ -36,7 +36,7 @@ jobs:
     - name: Unzip and repackage Atmosphère
       run: |
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
-        zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
+        zip_file=$(find "$release_dir" -name "atmosphere-*.zip" ! -name "*debug.zip" | head -n 1)
         echo "Found zip: $zip_file"
 
         zip_name=$(basename "$zip_file" .zip)
