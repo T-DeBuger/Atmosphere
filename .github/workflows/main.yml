@@ -13,32 +13,34 @@ jobs:
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
-      
+
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential
-        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
-        echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-        sudo apt-get update
-        sudo apt-get install -y devkitpro-pacman
-        # 安装所需工具链和库
-        sudo dkp-pacman -Syu --noconfirm
-        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-        # Python lz4 依赖（用于 Exosphere）
+        sudo apt-get install -y curl wget gpg python3-pip build-essential unzip zip
+
+    - name: Install devkitpro-pacman from official deb
+      run: |
+        curl -LO https://packages.devkitpro.org/devkitpro-pacman_1.7.7-1_all.deb
+        sudo dpkg -i devkitpro-pacman_1.7.7-1_all.deb || sudo apt-get -f install -y
+        sudo devkitpro-pacman -Syu --noconfirm
+        sudo devkitpro-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+
+    - name: Install Python lz4
+      run: |
         pip3 install lz4
-        
+
     - name: Set environment variables
       run: |
         echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
         echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
         echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
-        
+
     - name: Build Atmosphère
       run: |
         make nx_release
-        
+
     - name: Unzip and repackage Atmosphère
       run: |
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
@@ -50,12 +52,12 @@ jobs:
         cd unpacked
         zip -rq ../atmosphere.zip .
         cd -
-        
+
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
         echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-        
+
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
