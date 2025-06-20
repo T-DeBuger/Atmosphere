@@ -19,14 +19,6 @@ jobs:
     - name: Add safe directory for Git
       run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
 
-    - name: Cache build output
-      uses: actions/cache@v3
-      with:
-        path: out
-        key: ${{ runner.os }}-atmosphere-build-${{ hashFiles('**/*') }}
-        restore-keys: |
-          ${{ runner.os }}-atmosphere-build-
-
     - name: Install pip
       run: |
         sudo apt-get update
