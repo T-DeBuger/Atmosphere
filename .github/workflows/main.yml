@@ -16,6 +16,9 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
+    - name: Add safe directory for Git
+      run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
+
     - name: Cache build output
       uses: actions/cache@v3
       with:
