@@ -73,10 +73,15 @@ jobs:
         make nx_release
 
     - name: Unzip and repackage Atmosphère
+      id: package
       run: |
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
         echo "Found zip: $zip_file"
+
+        zip_name=$(basename "$zip_file" .zip)
+        echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
+        echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
 
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
@@ -85,13 +90,13 @@ jobs:
         cp "$release_dir/fusee.bin" "$inner_dir/"
 
         cd "$inner_dir"
-        zip -rq ../../atmosphere.zip .
+        zip -rq ../../atmosphere.zip ./*
         cd -
 
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        echo "RELEASE_NAME=${{ env.ZIP_NAME }} $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
