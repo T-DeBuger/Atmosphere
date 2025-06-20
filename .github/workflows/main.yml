@@ -16,6 +16,14 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
+    - name: Cache build output
+      uses: actions/cache@v3
+      with:
+        path: out
+        key: ${{ runner.os }}-atmosphere-build-${{ hashFiles('**/*.c', '**/*.cpp', '**/*.h', 'Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-atmosphere-build-
+
     - name: Install pip
       run: |
         sudo apt-get update
