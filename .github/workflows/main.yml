@@ -13,95 +13,49 @@ jobs:
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
-
-    - name: Cache devkitPro
-      id: devkitpro-cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.devkitpro
-        key: devkitpro-${{ runner.os }}-v2
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: pip-${{ runner.os }}-lz4
-        restore-keys: |
-          pip-${{ runner.os }}-
-
-    - name: Cache ccache
-      uses: actions/cache@v4
-      with:
-        path: ~/.ccache
-        key: ccache-${{ runner.os }}-${{ hashFiles('**/*.cpp') }}
-        restore-keys: |
-          ccache-${{ runner.os }}-
-
+      
     - name: Install dependencies
-      if: steps.devkitpro-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip
-
-        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+        sudo apt-get install -y curl wget gpg python3-pip build-essential
+        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
+        echo "deb [trusted=yes] http://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
         sudo apt-get update
         sudo apt-get install -y devkitpro-pacman
-
-        export DEVKITPRO=$HOME/.devkitpro
-        mkdir -p "$DEVKITPRO"
-
+        # 安装所需工具链和库
         sudo dkp-pacman -Syu --noconfirm
         sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-
+        # Python lz4 依赖（用于 Exosphere）
         pip3 install lz4
-
-    - name: Setup environment variables
+        
+    - name: Set environment variables
       run: |
-        echo "DEVKITPRO=$HOME/.devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=$HOME/.devkitpro/devkitARM" >> $GITHUB_ENV
-        echo "DEVKITA64=$HOME/.devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=$HOME/.devkitpro/devkitARM/bin:$HOME/.devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
-
-    - name: Setup ccache
-      run: |
-        export CC="ccache gcc"
-        export CXX="ccache g++"
-        export CCACHE_DIR=~/.ccache
-        ccache -M 2G
-
+        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
+        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
+        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
+        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+        
     - name: Build Atmosphère
       run: |
-        export DEVKITPRO=$HOME/.devkitpro
-        export DEVKITARM=$HOME/.devkitpro/devkitARM
-        export DEVKITA64=$HOME/.devkitpro/devkitA64
-        export PATH=$DEVKITARM/bin:$DEVKITA64/bin:$PATH
         make nx_release
-
+        
     - name: Unzip and repackage Atmosphère
-      id: package
       run: |
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
         echo "Found zip: $zip_file"
-
-        zip_name=$(basename "$zip_file" .zip)
-        echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
-        echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
-
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
-
         cp "$release_dir/fusee.bin" unpacked/
-
         cd unpacked
         zip -rq ../atmosphere.zip .
         cd -
-
+        
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=${{ env.ZIP_NAME }} $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-
+        echo "RELEASE_NAME=Atmosphère Build $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
