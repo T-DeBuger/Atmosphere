@@ -37,12 +37,12 @@ jobs:
         restore-keys: |
           ccache-${{ runner.os }}-
 
-    - name: Cache build output
+    - name: Cache build output (out/)
       id: build-cache
       uses: actions/cache@v4
       with:
-        path: out/
-        key: build-output-${{ runner.os }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
+        path: out
+        key: build-output-${{ runner.os }}-${{ hashFiles('**/*.cpp') }}
         restore-keys: |
           build-output-${{ runner.os }}-
 
