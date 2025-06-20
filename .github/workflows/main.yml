@@ -10,23 +10,24 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    container:
-      image: devkitpro/devkita64  # ✅ 使用官方构建环境镜像
-      options: --user root        # 允许使用 apt 安装额外依赖
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout Atmosphère
-      uses: actions/checkout@v4
-      with:
-        ref: master
-        fetch-depth: 0
+      uses: actions/checkout@v3
 
-    - name: Install extra dependencies
+    - name: Install dependencies
       run: |
-        apt-get update
-        apt-get install -y python3-pip zip unzip
+        sudo apt-get update
+        sudo apt-get install -y curl wget gpg python3-pip build-essential
+        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
+        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+        sudo apt-get update
+        sudo apt-get install -y devkitpro-pacman
+        # 安装所需工具链和库
+        sudo dkp-pacman -Syu --noconfirm
+        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+        # Python lz4 依赖（用于 Exosphere）
         pip3 install lz4
 
     - name: Set environment variables
