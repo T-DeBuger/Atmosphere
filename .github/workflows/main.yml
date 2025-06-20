@@ -23,7 +23,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: out
-        key: ${{ runner.os }}-atmosphere-build-${{ hashFiles('**/*.c', '**/*.cpp', '**/*.h', 'Makefile') }}
+        key: ${{ runner.os }}-atmosphere-build-${{ hashFiles('**/*') }}
         restore-keys: |
           ${{ runner.os }}-atmosphere-build-
 
@@ -55,13 +55,13 @@ jobs:
         unzip -q "$zip_file" -d unpacked
         cp "$release_dir/fusee.bin" unpacked/
         cd unpacked
-        zip -rq ../atmosphere.zip .
+        zip -rq ../${zip_name}.zip .
         cd -
 
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=${{ env.ZIP_NAME }} $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        echo "RELEASE_NAME=${ env.ZIP_NAME } | $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
@@ -71,8 +71,8 @@ jobs:
         allowUpdates: false
         commit: master
         token: ${{ secrets.actions_release }}
-        body: "最新构建版本，包含 atmosphere.zip 和 fusee.bin"
-        artifacts: atmosphere.zip
+        body: "最新构建版本，包含 atmosphere文件夹、switch文件夹、fusee.bin"
+        artifacts: ${{ env.ZIP_NAME }}.zip
 
     - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@v0.3.2
