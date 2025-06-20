@@ -18,7 +18,7 @@ jobs:
       id: devkitpro-cache
       uses: actions/cache@v4
       with:
-        path: /opt/devkitpro
+        path: ~/.devkitpro
         key: devkitpro-${{ runner.os }}-v2
 
     - name: Cache pip dependencies
@@ -37,15 +37,6 @@ jobs:
         restore-keys: |
           ccache-${{ runner.os }}-
 
-    - name: Cache build output (out/)
-      id: build-cache
-      uses: actions/cache@v4
-      with:
-        path: out
-        key: build-output-${{ runner.os }}-${{ hashFiles('**/*.cpp') }}
-        restore-keys: |
-          build-output-${{ runner.os }}-
-
     - name: Install dependencies
       if: steps.devkitpro-cache.outputs.cache-hit != 'true'
       run: |
@@ -56,6 +47,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y devkitpro-pacman
 
+        export DEVKITPRO=$HOME/.devkitpro
+        mkdir -p "$DEVKITPRO"
+
         sudo dkp-pacman -Syu --noconfirm
         sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
 
@@ -63,10 +57,10 @@ jobs:
 
     - name: Setup environment variables
       run: |
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+        echo "DEVKITPRO=$HOME/.devkitpro" >> $GITHUB_ENV
+        echo "DEVKITARM=$HOME/.devkitpro/devkitARM" >> $GITHUB_ENV
+        echo "DEVKITA64=$HOME/.devkitpro/devkitA64" >> $GITHUB_ENV
+        echo "PATH=$HOME/.devkitpro/devkitARM/bin:$HOME/.devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
 
     - name: Setup ccache
       run: |
@@ -77,9 +71,9 @@ jobs:
 
     - name: Build Atmosphère
       run: |
-        export DEVKITPRO=/opt/devkitpro
-        export DEVKITARM=/opt/devkitpro/devkitARM
-        export DEVKITA64=/opt/devkitpro/devkitA64
+        export DEVKITPRO=$HOME/.devkitpro
+        export DEVKITARM=$HOME/.devkitpro/devkitARM
+        export DEVKITA64=$HOME/.devkitpro/devkitA64
         export PATH=$DEVKITARM/bin:$DEVKITA64/bin:$PATH
         make nx_release
 
@@ -97,6 +91,7 @@ jobs:
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
 
+        # 修正层级处理，假设解压后文件夹名和 zip_name 一致
         inner_dir="unpacked/$zip_name"
         cp "$release_dir/fusee.bin" "$inner_dir/"
 
