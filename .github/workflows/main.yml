@@ -14,66 +14,57 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
-    - name: Cache devkitPro
-      uses: actions/cache@v4
-      with:
-        path: |
-          /opt/devkitpro
-          ~/.dkp
-        key: devkitpro-${{ runner.os }}-v1
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: pip-${{ runner.os }}-lz4
-        restore-keys: |
-          pip-${{ runner.os }}-
-          
-    - name: Cache ccache
-      uses: actions/cache@v4
-      with:
-        path: ~/.ccache
-        key: ccache-${{ runner.os }}-${{ hashFiles('**/*.cpp') }}
-        restore-keys: |
-          ccache-${{ runner.os }}-
-          
-    - name: Install dependencies
+    - name: Install base dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip
-        # 安装 devkitPro 工具链（跳过 GPG 校验）
-        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-        sudo apt-get update
-        sudo apt-get install -y devkitpro-pacman
-        sudo dkp-pacman -Syu --noconfirm
-        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-        # Python 依赖
-        pip3 install lz4
+        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip zstd tar
+
+    - name: Install devkitPro pacman manually
+      run: |
+        # 下载 devkitpro-pacman 安装包（v6.0.2）
+        wget https://github.com/devkitPro/pacman/releases/download/v6.0.2/devkitpro-pacman-installer.pkg -O devkitpro-pacman.pkg.tar.zst
         
+        # 解压安装
+        mkdir devkitpro-installer
+        tar --use-compress-program=unzstd -xvf devkitpro-pacman.pkg.tar.zst -C devkitpro-installer
+        
+        # 安装文件复制到系统目录
+        sudo cp -r devkitpro-installer/* /
+
+        # 添加 dkp-pacman 命令到 PATH（写入 GitHub Actions 环境变量）
+        echo "/opt/devkitpro/pacman/bin" >> $GITHUB_PATH
+
+    - name: Initialize and populate pacman keyring
+      run: |
+        sudo dkp-pacman-key --init || true
+        sudo dkp-pacman-key --populate || true
+
+    - name: Update and install devkitPro toolchains
+      run: |
+        sudo dkp-pacman -Syu --noconfirm || true
+        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool || true
+
+    - name: Install Python lz4
+      run: |
+        pip3 install lz4
+
     - name: Setup environment variables
       run: |
         echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
         echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
         echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
         echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
-        
-    - name: Setup ccache
-      run: |
-        export CC="ccache gcc"
-        export CXX="ccache g++"
-        export CCACHE_DIR=~/.ccache
-        ccache -M 2G
-        
+
     - name: Build Atmosphère
       run: |
         make nx_release
-        
+
     - name: Unzip and repackage Atmosphère
       run: |
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" | head -n 1)
         echo "Found zip: $zip_file"
+
         zip_name=$(basename "$zip_file" .zip)
         echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
         echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
@@ -84,12 +75,12 @@ jobs:
         cd unpacked
         zip -rq ../atmosphere.zip .
         cd -
-        
+
     - name: Set tag and release name
       run: |
         echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
         echo "RELEASE_NAME=${{ env.ZIP_NAME }} $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-        
+
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
