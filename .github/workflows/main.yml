@@ -27,8 +27,8 @@ jobs:
 
     - name: Update and install toolchains
       run: |
-        sudo pacman -Syu
-        sudo pacman -S devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+        sudo dkp-pacman -Syu
+        sudo dkp-pacman -S devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
 
     - name: Install Python lz4
       run: |
