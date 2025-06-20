@@ -1,8 +1,6 @@
 name: Build Atmosphère
 
 on:
-  # push:
-  #   branches: [ master ]
   workflow_dispatch:
 
 env:
@@ -16,36 +14,21 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl wget gpg python3-pip build-essential
-        # 添加 devkitPro 仓库（跳过 GPG 校验更稳）
-        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-        sudo apt-get update
-        sudo apt-get install -y devkitpro-pacman
-        # 安装所需工具链和库
-        sudo dkp-pacman -Syu --noconfirm
-        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
-        # Python lz4 依赖（用于 Exosphere）
-        pip3 install lz4
+    - name: Cache devkitPro
+      uses: actions/cache@v4
+      with:
+        path: |
+          /opt/devkitpro
+          ~/.dkp
+        key: devkitpro-${{ runner.os }}-v1
 
-    - name: Set environment variables
-      run: |
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
-
-    - name: Install ccache
-      run: sudo apt-get install -y ccache
-
-    - name: Setup ccache
-      run: |
-        export CC="ccache gcc"
-        export CXX="ccache g++"
-        export CCACHE_DIR=~/.ccache
-        ccache -M 2G
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-${{ runner.os }}-lz4
+        restore-keys: |
+          pip-${{ runner.os }}-
 
     - name: Cache ccache
       uses: actions/cache@v4
@@ -54,6 +37,36 @@ jobs:
         key: ccache-${{ runner.os }}-${{ hashFiles('**/*.cpp') }}
         restore-keys: |
           ccache-${{ runner.os }}-
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl wget gpg python3-pip build-essential ccache zip unzip
+
+        # 安装 devkitPro 工具链（跳过 GPG 校验）
+        echo "deb [trusted=yes] https://apt.devkitpro.org/ stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+        sudo apt-get update
+        sudo apt-get install -y devkitpro-pacman
+
+        sudo dkp-pacman -Syu --noconfirm
+        sudo dkp-pacman -S --noconfirm devkitA64 devkitARM switch-dev switch-glm switch-libjpeg-turbo hactool
+
+        # Python 依赖
+        pip3 install lz4
+
+    - name: Setup environment variables
+      run: |
+        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
+        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
+        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
+        echo "PATH=/opt/devkitpro/devkitARM/bin:/opt/devkitpro/devkitA64/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Setup ccache
+      run: |
+        export CC="ccache gcc"
+        export CXX="ccache g++"
+        export CCACHE_DIR=~/.ccache
+        ccache -M 2G
 
     - name: Build Atmosphère
       run: |
