@@ -16,9 +16,14 @@ jobs:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
+    - name: Install pip
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip
+        python3 -m pip install --upgrade pip
+
     - name: Install Python dependencies
       run: |
-        python3 -m pip install --upgrade pip
         pip3 install lz4
 
     - name: Build Atmosphère
