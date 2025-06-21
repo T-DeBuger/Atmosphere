@@ -59,8 +59,8 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         name: ${{ env.RELEASE_NAME }}
-        tag: ${{ env.ZIP_NAME }}
-        allowUpdates: false
+        tag: latest
+        allowUpdates: true
         commit: master
         token: ${{ secrets.actions_release }}
         body: "最新构建版本，包含 atmosphere文件夹、switch文件夹、fusee.bin"
