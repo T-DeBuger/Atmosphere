@@ -10,28 +10,27 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     container:
-      image: devkitpro/devkita64:latest
+      image: registry.cn-hangzhou.aliyuncs.com/mozt/devkita64:1.0
 
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
 
     - name: Add safe directory for Git
       run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
 
-    - name: Install pip
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-pip
-        python3 -m pip install --upgrade pip
-
-    - name: Install Python dependencies
-      run: |
-        pip3 install lz4
-
+    - name: Cache build output
+      uses: actions/cache@v3
+      with:
+        path: out
+        key: ${{ runner.os }}-build-${{ hashFiles('**/*.c', '**/*.cpp', '**/*.h', '**/*.mk') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+    
     - name: Build Atmosphère
-      run: |
-        make nx_release
+      run: make nx_release -j$(nproc)
 
     - name: Unzip and repackage Atmosphère
       run: |
