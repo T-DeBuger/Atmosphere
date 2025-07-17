@@ -10,40 +10,24 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     container:
-      image: ubuntu:22.04
+      image: devkitpro/devkita64:latest
 
     steps:
     - name: Checkout Atmosphère
       uses: actions/checkout@v3
 
-    - name: Install system dependencies
-      run: |
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y \
-          python3 python3-pip curl unzip zip git build-essential gnupg
+    - name: Add safe directory for Git
+      run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
 
-    - name: Upgrade pip and install Python deps
+    - name: Install pip
       run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip
         python3 -m pip install --upgrade pip
+
+    - name: Install Python dependencies
+      run: |
         pip3 install lz4
-
-    - name: Install devkitPro toolchain
-      run: |
-        curl -L https://github.com/devkitPro/pacman/releases/latest/download/devkitpro-pacman.deb -o devkitpro-pacman.deb
-        dpkg -i devkitpro-pacman.deb || apt-get install -f -y
-        dkp-pacman -Sy --noconfirm
-        dkp-pacman -S --noconfirm devkitA64 libnx
-
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITA64=/opt/devkitpro/devkitA64" >> $GITHUB_ENV
-        echo "/opt/devkitpro/devkitA64/bin" >> $GITHUB_PATH
-
-    - name: Verify toolchain
-      run: |
-        echo "DEVKITPRO=$DEVKITPRO"
-        echo "DEVKITA64=$DEVKITA64"
-        which aarch64-none-elf-gcc
-        aarch64-none-elf-gcc --version
 
     - name: Build Atmosphère
       run: |
@@ -54,9 +38,11 @@ jobs:
         release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
         zip_file=$(find "$release_dir" -name "atmosphere-*.zip" ! -name "*debug.zip" | head -n 1)
         echo "Found zip: $zip_file"
+
         zip_name=$(basename "$zip_file" .zip)
         echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
         echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+
         mkdir -p unpacked
         unzip -q "$zip_file" -d unpacked
         cp "$release_dir/fusee.bin" unpacked/
