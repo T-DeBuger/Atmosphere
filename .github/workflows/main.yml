@@ -19,14 +19,14 @@ jobs:
     - name: Add safe directory for Git
       run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
 
-    - name: Install pip
+    - name: Verify Python and pip
       run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-pip
-        python3 -m pip install --upgrade pip
+        python3 --version
+        pip3 --version
 
-    - name: Install Python dependencies
+    - name: Upgrade pip and install Python dependencies
       run: |
+        python3 -m pip install --upgrade pip
         pip3 install lz4
 
     - name: Build Atmosphère
