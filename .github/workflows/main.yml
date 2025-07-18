@@ -30,7 +30,7 @@ jobs:
           ${{ runner.os }}-build-
     
     - name: Build Atmosphère
-      run: make nx_release
+      run: make nx_release --debug
 
     - name: Unzip and repackage Atmosphère
       run: |
