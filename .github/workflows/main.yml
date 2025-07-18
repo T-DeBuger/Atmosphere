@@ -22,17 +22,9 @@ jobs:
 
     - name: Add safe directory for Git
       run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
-
-    - name: Cache build output
-      uses: actions/cache@v3
-      with:
-        path: out
-        key: ${{ runner.os }}-build-${{ hashFiles('**/*.c', '**/*.cpp', '**/*.h', '**/*.mk') }}
-        restore-keys: |
-          ${{ runner.os }}-build-
     
     - name: Build Atmosphère
-      run: make -d nx_release
+      run: make nx_release
 
     - name: Unzip and repackage Atmosphère
       run: |
