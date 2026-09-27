@@ -15,61 +15,66 @@ jobs:
       image: registry.cn-hangzhou.aliyuncs.com/mozt/devkita64:1.2
 
     steps:
-    - name: Checkout Atmosphère
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 1
+      - name: Update latest libnx
+        run: |
+          git config --global --add safe.directory "*"
+          git clone --recurse-submodules https://github.com/switchbrew/libnx.git
+          cd libnx
+          make install -j$(nproc)
+        shell: bash
 
-    - name: Add safe directory for Git
-      run: git config --global --add safe.directory /__w/Atmosphere/Atmosphere
-    
-    - name: Build Atmosphère
-      run: make nx_release
+      - name: Checkout Atmosphère
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
 
-    - name: Unzip and repackage Atmosphère
-      run: |
-        release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
-        zip_file=$(find "$release_dir" -name "atmosphere-*.zip" ! -name "*debug.zip" | head -n 1)
-        echo "Found zip: $zip_file"
+      - name: Build Atmosphère
+        run: make nx_release
 
-        zip_name=$(basename "$zip_file" .zip)
-        echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
-        echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+      - name: Unzip and repackage Atmosphère
+        run: |
+          release_dir=$(find out -type d -path "out/nintendo_*/release" | head -n 1)
+          zip_file=$(find "$release_dir" -name "atmosphere-*.zip" ! -name "*debug.zip" | head -n 1)
+          echo "Found zip: $zip_file"
+          
+          zip_name=$(basename "$zip_file" .zip)
+          echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
+          echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+          
+          mkdir -p unpacked
+          unzip -q "$zip_file" -d unpacked
+          cp "$release_dir/fusee.bin" unpacked/
+          cd unpacked
+          zip -rq ../${zip_name}.zip .
+          cd -
 
-        mkdir -p unpacked
-        unzip -q "$zip_file" -d unpacked
-        cp "$release_dir/fusee.bin" unpacked/
-        cd unpacked
-        zip -rq ../${zip_name}.zip .
-        cd -
+      - name: Set tag and release name
+        run: |
+          echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+          echo "RELEASE_NAME=${{ env.ZIP_NAME }} | $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
-    - name: Set tag and release name
-      run: |
-        echo "TAG_NAME=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=${{ env.ZIP_NAME }} | $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: ${{ env.RELEASE_NAME }}
+          tag: ${{ env.TAG_NAME }}
+          allowUpdates: true
+          commit: master
+          token: ${{ secrets.actions_release }}
+          body: "最新构建版本，包含 atmosphere文件夹、switch文件夹、fusee.bin"
+          artifacts: ${{ env.ZIP_NAME }}.zip
 
-    - name: Create GitHub Release
-      uses: ncipollo/release-action@v1
-      with:
-        name: ${{ env.RELEASE_NAME }}
-        tag: ${{ env.TAG_NAME }}
-        allowUpdates: true
-        commit: master
-        token: ${{ secrets.actions_release }}
-        body: "最新构建版本，包含 atmosphere文件夹、switch文件夹、fusee.bin"
-        artifacts: ${{ env.ZIP_NAME }}.zip
+      - name: Remove old Releases
+        uses: dev-drprasad/delete-older-releases@v0.3.2
+        with:
+          keep_latest: 3
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.actions_release }}
 
-    - name: Remove old Releases
-      uses: dev-drprasad/delete-older-releases@v0.3.2
-      with:
-        keep_latest: 3
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.actions_release }}
-
-    - name: Trigger repository workflow
-      uses: peter-evans/repository-dispatch@v2
-      with:
-        token: ${{ secrets.actions_release }}
-        repository: T-DeBuger/SwitchNX
-        event-type: build-complete
+      - name: Trigger repository workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.actions_release }}
+          repository: T-DeBuger/SwitchNX
+          event-type: build-complete
